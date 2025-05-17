@@ -41,4 +41,8 @@ public class GraphSnapshot {
     public Map<Integer, Set<Integer>> getAdjacencyList() {
         return adjacencyList;
     }
+
+    public boolean hasEdge(int from, int to) {
+        return adjacencyList.containsKey(from) && adjacencyList.get(from).contains(to);
+    }
 }

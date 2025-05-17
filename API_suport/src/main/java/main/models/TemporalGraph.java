@@ -30,4 +30,8 @@ public class TemporalGraph {
     public boolean isDirected() {
         return directed;
     }
+    
+    public Map<Long, GraphSnapshot> getSnapshots() {
+        return snapshots;
+    }
 }
