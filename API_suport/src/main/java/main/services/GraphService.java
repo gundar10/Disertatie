@@ -47,6 +47,55 @@ public class GraphService {
 
         return Collections.emptyList();
     }
+    
+        public List<String> findFastestPath(String source, String target, int tAlpha, int tOmega) {
+        List<TemporalEdge> outgoing = temporalGraph.getEdgesFrom(source);
+        outgoing.sort(Comparator.comparingInt(TemporalEdge::getStartTime));
+
+        List<String> bestPath = Collections.emptyList();
+        int bestDuration = Integer.MAX_VALUE;
+
+        for (TemporalEdge startEdge : outgoing) {
+            int start = startEdge.getStartTime();
+            if (start < tAlpha || (start + startEdge.getDuration()) > tOmega) continue;
+
+            PriorityQueue<PathState> pq = new PriorityQueue<>();
+            pq.add(new PathState(startEdge.getTo(), start + startEdge.getDuration(), startEdge.getDuration()));
+
+            Map<String, Integer> arrivalTime = new HashMap<>();
+            arrivalTime.put(source, start);
+            arrivalTime.put(startEdge.getTo(), start + startEdge.getDuration());
+
+            Map<String, String> parent = new HashMap<>();
+            parent.put(startEdge.getTo(), source);
+
+            while (!pq.isEmpty()) {
+                PathState state = pq.poll();
+
+                if (state.node.equals(target)) {
+                    int duration = state.arrivalTime - start;
+                    if (duration < bestDuration) {
+                        bestDuration = duration;
+                        bestPath = reconstructPath(parent, target);
+                    }
+                    break; // since we only care about one earliest arrival from this start time
+                }
+
+                for (TemporalEdge edge : temporalGraph.getEdgesFrom(state.node)) {
+                    if (edge.getStartTime() >= state.arrivalTime && (edge.getStartTime() + edge.getDuration()) <= tOmega) {
+                        int arrival = edge.getStartTime() + edge.getDuration();
+                        if (arrival < arrivalTime.getOrDefault(edge.getTo(), Integer.MAX_VALUE)) {
+                            arrivalTime.put(edge.getTo(), arrival);
+                            parent.put(edge.getTo(), state.node);
+                            pq.add(new PathState(edge.getTo(), arrival, 0));
+                        }
+                    }
+                }
+            }
+        }
+
+        return bestPath;
+    }
 
     private List<String> reconstructPath(Map<String, String> parent, String target) {
         LinkedList<String> path = new LinkedList<>();

@@ -42,4 +42,13 @@ public class GraphController {
             @RequestParam int tOmega) {
         return graphService.findTemporalShortestPath(source, target, tAlpha, tOmega);
     }
+
+    @GetMapping("/fastestPath")
+    public List<String> getFastestPath(
+            @RequestParam String source,
+            @RequestParam String target,
+            @RequestParam int tAlpha,
+            @RequestParam int tOmega) {
+        return graphService.findFastestPath(source, target, tAlpha, tOmega);
+    }
 }
