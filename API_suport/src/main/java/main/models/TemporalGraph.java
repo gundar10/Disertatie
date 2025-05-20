@@ -16,4 +16,8 @@ public class TemporalGraph {
     public List<TemporalEdge> getEdgesFrom(String node) {
         return adjacencyList.getOrDefault(node, Collections.emptyList());
     }
+    
+    public Map<String, List<TemporalEdge>> getAllEdges() {
+        return adjacencyList;
+    }
 }

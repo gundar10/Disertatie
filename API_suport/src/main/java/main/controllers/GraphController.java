@@ -51,4 +51,22 @@ public class GraphController {
             @RequestParam int tOmega) {
         return graphService.findFastestPath(source, target, tAlpha, tOmega);
     }
+    
+    @GetMapping("/earliestArrivalPath")
+    public List<String> getEarliestArrivalPath(
+            @RequestParam String source,
+            @RequestParam String target,
+            @RequestParam int tAlpha,
+            @RequestParam int tOmega) {
+        return graphService.findEarliestArrivalPath(source, target, tAlpha, tOmega);
+    }
+    
+    @GetMapping("/latestDeparturePath")
+    public List<String> getLatestDeparturePath(
+            @RequestParam String source,
+            @RequestParam String target,
+            @RequestParam int tAlpha,
+            @RequestParam int tOmega) {
+        return graphService.findLatestDeparturePath(source, target, tAlpha, tOmega);
+    }
 }
