@@ -163,6 +163,30 @@ public class GraphService {
 
         return Collections.emptyList();
     }
+    
+        public boolean isReachable(String source, String target, int tAlpha, int tOmega) {
+        Queue<PathState> queue = new LinkedList<>();
+        Set<String> visited = new HashSet<>();
+        queue.add(new PathState(source, tAlpha, 0));
+
+        while (!queue.isEmpty()) {
+            PathState state = queue.poll();
+            if (state.node.equals(target)) {
+                return true;
+            }
+            for (TemporalEdge edge : temporalGraph.getEdgesFrom(state.node)) {
+                int edgeStart = edge.getStartTime();
+                int edgeEnd = edgeStart + edge.getDuration();
+                if (edgeStart >= state.arrivalTime && edgeEnd <= tOmega && !visited.contains(edge.getTo())) {
+                    visited.add(edge.getTo());
+                    queue.add(new PathState(edge.getTo(), edgeEnd, 0));
+                }
+            }
+        }
+
+        return false;
+    }
+
 
     private List<String> reconstructPath(Map<String, String> parent, String target) {
         LinkedList<String> path = new LinkedList<>();

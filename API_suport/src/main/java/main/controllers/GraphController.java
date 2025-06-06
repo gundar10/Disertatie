@@ -69,4 +69,13 @@ public class GraphController {
             @RequestParam int tOmega) {
         return graphService.findLatestDeparturePath(source, target, tAlpha, tOmega);
     }
+    
+    @GetMapping("/reachable")
+    public boolean isReachable(
+            @RequestParam String source,
+            @RequestParam String target,
+            @RequestParam int tAlpha,
+            @RequestParam int tOmega) {
+        return graphService.isReachable(source, target, tAlpha, tOmega);
+    }
 }
