@@ -1,103 +1,227 @@
 package main.services;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import main.models.GraphSnapshot;
 import main.models.TemporalGraph;
+import main.models.TemporalEdge;
 import org.springframework.stereotype.Service;
+
+import java.util.*;
 
 @Service
 public class GraphService {
-    private final Map<String, TemporalGraph> graphMap = new HashMap<>();
 
-    public void createSetupGraph(String id, boolean directed) {
-        graphMap.put(id, new TemporalGraph(directed));
-        addSnapshot(id, 1000, Arrays.asList(new int[]{1, 2}));
-        addSnapshot(id, 2000, Arrays.asList(new int[]{1, 3}, new int[]{1, 5}));
-        addSnapshot(id, 3000, Arrays.asList(new int[]{5, 4}));
-        addSnapshot(id, 4000, Arrays.asList(new int[]{2, 3}));
-        addSnapshot(id, 5000, Arrays.asList(new int[]{2, 4}));
-        addSnapshot(id, 6000, Arrays.asList(new int[]{4, 2}));
-        addSnapshot(id, 7000, Arrays.asList(new int[]{1, 4}));
+    private final TemporalGraph temporalGraph = new TemporalGraph();
+
+    public void addEdge(String from, String to, int startTime, int duration) {
+        temporalGraph.addEdge(from, to, startTime, duration);
     }
 
-    public void createGraph(String id, boolean directed) {
-        graphMap.put(id, new TemporalGraph(directed));
-    }
+    public List<String> findTemporalShortestPath(String source, String target, int tAlpha, int tOmega) {
+        PriorityQueue<PathState> pq = new PriorityQueue<>();
+        pq.add(new PathState(source, 0, 0));
 
-    public void addSnapshot(String id, long timestamp, List<int[]> edges) {
-        TemporalGraph graph = graphMap.get(id);
-        if (graph == null) return;
+        Map<String, Integer> bestCost = new HashMap<>();
+        bestCost.put(source, 0);
 
-        GraphSnapshot snapshot = new GraphSnapshot(graph.isDirected());
-        for (int[] edge : edges) {
-            snapshot.addEdge(edge[0], edge[1]);
-        }
-        graph.createSnapshot(timestamp, snapshot);
-    }
+        Map<String, String> parent = new HashMap<>();
 
-    public GraphSnapshot getSnapshot(String id, long timestamp) {
-        TemporalGraph graph = graphMap.get(id);
-        return (graph != null) ? graph.getSnapshotAt(timestamp) : null;
-    }
+        while (!pq.isEmpty()) {
+            PathState state = pq.poll();
 
-    public Set<Integer> getNeighbors(String id, int node, long timestamp) {
-        TemporalGraph graph = graphMap.get(id);
-        return (graph != null) ? graph.getNeighborsAtTime(node, timestamp) : Set.of();
-    }
-
-    public List<Long> getEdgeHistory(String id, int from, int to) {
-    TemporalGraph graph = graphMap.get(id);
-    if (graph == null) return List.of();
-
-        List<Long> activeTimestamps = new ArrayList<>();
-        for (Map.Entry<Long, GraphSnapshot> entry : graph.getSnapshots().entrySet()) {
-            GraphSnapshot snapshot = entry.getValue();
-            if (snapshot.hasEdge(from, to)) {
-                activeTimestamps.add(entry.getKey());
+            if (state.node.equals(target)) {
+                return reconstructPath(parent, target);
             }
-        }
-        return activeTimestamps;
-    }
 
-    public List<Integer> getShortestPath(String id, int from, int to, long timestamp) {
-        GraphSnapshot snapshot = getSnapshot(id, timestamp);
-        if (snapshot == null) return List.of();
+            for (TemporalEdge edge : temporalGraph.getEdgesFrom(state.node)) {
+                if (edge.getStartTime() >= state.arrivalTime && edge.getStartTime() >= tAlpha && (edge.getStartTime() + edge.getDuration()) <= tOmega) {
+                    int arrival = edge.getStartTime() + edge.getDuration();
+                    int newCost = state.totalCost + edge.getDuration();
 
-        Queue<List<Integer>> queue = new LinkedList<>();
-        Set<Integer> visited = new HashSet<>();
-        queue.offer(List.of(from));
-
-        while (!queue.isEmpty()) {
-            List<Integer> path = queue.poll();
-            int last = path.get(path.size() - 1);
-            if (last == to) return path;
-
-            if (visited.add(last)) {
-                for (int neighbor : snapshot.getAdjacencyList().getOrDefault(last, Set.of())) {
-                    List<Integer> newPath = new ArrayList<>(path);
-                    newPath.add(neighbor);
-                    queue.offer(newPath);
+                    if (newCost < bestCost.getOrDefault(edge.getTo(), Integer.MAX_VALUE)) {
+                        bestCost.put(edge.getTo(), newCost);
+                        parent.put(edge.getTo(), state.node);
+                        pq.add(new PathState(edge.getTo(), arrival, newCost));
+                    }
                 }
             }
         }
-        return List.of();
+
+        return Collections.emptyList();
+    }
+    
+        public List<String> findFastestPath(String source, String target, int tAlpha, int tOmega) {
+        List<TemporalEdge> outgoing = temporalGraph.getEdgesFrom(source);
+        outgoing.sort(Comparator.comparingInt(TemporalEdge::getStartTime));
+
+        List<String> bestPath = Collections.emptyList();
+        int bestDuration = Integer.MAX_VALUE;
+
+        for (TemporalEdge startEdge : outgoing) {
+            int start = startEdge.getStartTime();
+            if (start < tAlpha || (start + startEdge.getDuration()) > tOmega) continue;
+
+            PriorityQueue<PathState> pq = new PriorityQueue<>();
+            pq.add(new PathState(startEdge.getTo(), start + startEdge.getDuration(), startEdge.getDuration()));
+
+            Map<String, Integer> arrivalTime = new HashMap<>();
+            arrivalTime.put(source, start);
+            arrivalTime.put(startEdge.getTo(), start + startEdge.getDuration());
+
+            Map<String, String> parent = new HashMap<>();
+            parent.put(startEdge.getTo(), source);
+
+            while (!pq.isEmpty()) {
+                PathState state = pq.poll();
+
+                if (state.node.equals(target)) {
+                    int duration = state.arrivalTime - start;
+                    if (duration < bestDuration) {
+                        bestDuration = duration;
+                        bestPath = reconstructPath(parent, target);
+                    }
+                    break; // since we only care about one earliest arrival from this start time
+                }
+
+                for (TemporalEdge edge : temporalGraph.getEdgesFrom(state.node)) {
+                    if (edge.getStartTime() >= state.arrivalTime && (edge.getStartTime() + edge.getDuration()) <= tOmega) {
+                        int arrival = edge.getStartTime() + edge.getDuration();
+                        if (arrival < arrivalTime.getOrDefault(edge.getTo(), Integer.MAX_VALUE)) {
+                            arrivalTime.put(edge.getTo(), arrival);
+                            parent.put(edge.getTo(), state.node);
+                            pq.add(new PathState(edge.getTo(), arrival, 0));
+                        }
+                    }
+                }
+            }
+        }
+
+        return bestPath;
+    }
+        
+    public List<String> findEarliestArrivalPath(String source, String target, int tAlpha, int tOmega) {
+        PriorityQueue<PathState> pq = new PriorityQueue<>(Comparator.comparingInt(ps -> ps.arrivalTime));
+        pq.add(new PathState(source, tAlpha, 0));
+
+        Map<String, Integer> earliestArrival = new HashMap<>();
+        earliestArrival.put(source, tAlpha);
+
+        Map<String, String> parent = new HashMap<>();
+
+        while (!pq.isEmpty()) {
+            PathState state = pq.poll();
+            if (state.node.equals(target)) {
+                return reconstructPath(parent, target);
+            }
+
+            for (TemporalEdge edge : temporalGraph.getEdgesFrom(state.node)) {
+                int edgeStart = edge.getStartTime();
+                int edgeEnd = edgeStart + edge.getDuration();
+                if (edgeStart >= state.arrivalTime && edgeStart >= tAlpha && edgeEnd <= tOmega) {
+                    if (edgeEnd < earliestArrival.getOrDefault(edge.getTo(), Integer.MAX_VALUE)) {
+                        earliestArrival.put(edge.getTo(), edgeEnd);
+                        parent.put(edge.getTo(), state.node);
+                        pq.add(new PathState(edge.getTo(), edgeEnd, 0));
+                    }
+                }
+            }
+        }
+
+        return Collections.emptyList();
+    }
+    
+    public List<String> findLatestDeparturePath(String source, String target, int tAlpha, int tOmega) {
+        PriorityQueue<PathState> pq = new PriorityQueue<>((a, b) -> Integer.compare(b.arrivalTime, a.arrivalTime));
+        pq.add(new PathState(target, tOmega, 0));
+
+        Map<String, Integer> latestDeparture = new HashMap<>();
+        latestDeparture.put(target, tOmega);
+
+        Map<String, String> parent = new HashMap<>();
+
+        while (!pq.isEmpty()) {
+            PathState state = pq.poll();
+            if (state.node.equals(source)) {
+                return reconstructPathReverse(parent, source, target);
+            }
+
+            for (Map.Entry<String, List<TemporalEdge>> entry : temporalGraph.getAllEdges().entrySet()) {
+                for (TemporalEdge edge : entry.getValue()) {
+                    String from = edge.getFrom();
+                    String to = edge.getTo();
+                    int edgeStart = edge.getStartTime();
+                    int edgeEnd = edgeStart + edge.getDuration();
+
+                    if (to.equals(state.node) && edgeEnd <= state.arrivalTime && edgeStart >= tAlpha && edgeEnd <= tOmega) {
+                        if (edgeStart > latestDeparture.getOrDefault(from, Integer.MIN_VALUE)) {
+                            latestDeparture.put(from, edgeStart);
+                            parent.put(from, to);
+                            pq.add(new PathState(from, edgeStart, 0));
+                        }
+                    }
+                }
+            }
+        }
+
+        return Collections.emptyList();
+    }
+    
+        public boolean isReachable(String source, String target, int tAlpha, int tOmega) {
+        Queue<PathState> queue = new LinkedList<>();
+        Set<String> visited = new HashSet<>();
+        queue.add(new PathState(source, tAlpha, 0));
+
+        while (!queue.isEmpty()) {
+            PathState state = queue.poll();
+            if (state.node.equals(target)) {
+                return true;
+            }
+            for (TemporalEdge edge : temporalGraph.getEdgesFrom(state.node)) {
+                int edgeStart = edge.getStartTime();
+                int edgeEnd = edgeStart + edge.getDuration();
+                if (edgeStart >= state.arrivalTime && edgeEnd <= tOmega && !visited.contains(edge.getTo())) {
+                    visited.add(edge.getTo());
+                    queue.add(new PathState(edge.getTo(), edgeEnd, 0));
+                }
+            }
+        }
+
+        return false;
     }
 
-    public void deleteGraph(String id) {
-        graphMap.remove(id);
+
+    private List<String> reconstructPath(Map<String, String> parent, String target) {
+        LinkedList<String> path = new LinkedList<>();
+        String current = target;
+        while (current != null) {
+            path.addFirst(current);
+            current = parent.get(current);
+        }
+        return path;
+    }
+    
+    private List<String> reconstructPathReverse(Map<String, String> parent, String source, String target) {
+        LinkedList<String> path = new LinkedList<>();
+        String current = source;
+        while (current != null) {
+            path.addLast(current);
+            current = parent.get(current);
+        }
+        return path;
     }
 
-    public List<Long> getAllTimestamps(String id) {
-        TemporalGraph graph = graphMap.get(id);
-        if (graph == null) return List.of();
-        return new ArrayList<>(graph.getSnapshots().keySet());
-    }       
+    private static class PathState implements Comparable<PathState> {
+        String node;
+        int arrivalTime;
+        int totalCost;
+
+        public PathState(String node, int arrivalTime, int totalCost) {
+            this.node = node;
+            this.arrivalTime = arrivalTime;
+            this.totalCost = totalCost;
+        }
+
+        @Override
+        public int compareTo(PathState other) {
+            return Integer.compare(this.totalCost, other.totalCost);
+        }
+    }
 }

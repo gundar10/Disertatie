@@ -1,5 +1,6 @@
-main\models\GraphSnapshot.class
-main\models\TemporalGraph.class
 main\services\GraphService.class
 main\TemporalGraphApplication.class
 main\controllers\GraphController.class
+main\models\TemporalEdge.class
+main\models\TemporalGraph.class
+main\services\GraphService$PathState.class

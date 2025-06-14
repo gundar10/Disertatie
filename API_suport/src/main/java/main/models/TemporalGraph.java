@@ -1,37 +1,23 @@
 package main.models;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 
 public class TemporalGraph {
-    private final TreeMap<Long, GraphSnapshot> snapshots = new TreeMap<>();
-    private final boolean directed;
 
-    public TemporalGraph(boolean directed) {
-        this.directed = directed;
+    private final Map<String, List<TemporalEdge>> adjacencyList = new HashMap<>();
+
+    public void addEdge(String from, String to, int startTime, int duration) {
+        TemporalEdge edge = new TemporalEdge(from, to, startTime, duration);
+        adjacencyList
+            .computeIfAbsent(from, k -> new ArrayList<>())
+            .add(edge);
     }
 
-    public void createSnapshot(long timestamp, GraphSnapshot graph) {
-        snapshots.put(timestamp, graph.deepCopy());
-    }
-
-    public GraphSnapshot getSnapshotAt(long timestamp) {
-        Map.Entry<Long, GraphSnapshot> entry = snapshots.floorEntry(timestamp);
-        return (entry != null) ? entry.getValue() : null;
-    }
-
-    public Set<Integer> getNeighborsAtTime(int node, long timestamp) {
-        GraphSnapshot snapshot = getSnapshotAt(timestamp);
-        return (snapshot != null) ? snapshot.getNeighbors(node) : new HashSet<>();
-    }
-
-    public boolean isDirected() {
-        return directed;
+    public List<TemporalEdge> getEdgesFrom(String node) {
+        return adjacencyList.getOrDefault(node, Collections.emptyList());
     }
     
-    public Map<Long, GraphSnapshot> getSnapshots() {
-        return snapshots;
+    public Map<String, List<TemporalEdge>> getAllEdges() {
+        return adjacencyList;
     }
 }
