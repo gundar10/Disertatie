@@ -2,8 +2,8 @@ package main.services;
 
 import main.models.TemporalGraph;
 import main.models.TemporalEdge;
+import main.models.TemporalNode;
 import org.springframework.stereotype.Service;
-
 import java.util.*;
 
 @Service
@@ -11,8 +11,32 @@ public class GraphService {
 
     private final TemporalGraph temporalGraph = new TemporalGraph();
 
-    public void addEdge(String from, String to, int startTime, int duration) {
-        temporalGraph.addEdge(from, to, startTime, duration);
+    public void addNode(String id, Map<String, Object> attributes) {
+        temporalGraph.addNode(id, attributes);
+    }
+
+    public void addEdge(String from, String to, int startTime, int duration, Map<String, Object> attributes) {
+        temporalGraph.addEdge(from, to, startTime, duration, attributes);
+    }
+
+    public void clearGraph() {
+        temporalGraph.clear();
+    }
+    
+    public Set<String> getAllNodeIds() {
+        return temporalGraph.getAllNodeIds();
+    }
+
+    public Collection<TemporalNode> getAllNodes() {
+        return temporalGraph.getAllNodes();
+    }
+
+    public List<TemporalEdge> getAllEdges() {
+        List<TemporalEdge> all = new ArrayList<>();
+        for (List<TemporalEdge> edges : temporalGraph.getAllOutgoingEdges().values()) {
+            all.addAll(edges);
+        }
+        return all;
     }
 
     public List<String> findTemporalShortestPath(String source, String target, int tAlpha, int tOmega) {

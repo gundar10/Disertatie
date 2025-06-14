@@ -1,6 +1,8 @@
 main\services\GraphService.class
 main\TemporalGraphApplication.class
 main\controllers\GraphController.class
+main\benchmarks\GraphServiceBenchmark.class
 main\models\TemporalEdge.class
 main\models\TemporalGraph.class
 main\services\GraphService$PathState.class
+main\models\TemporalNode.class
